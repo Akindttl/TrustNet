@@ -233,3 +233,48 @@
   (/ (* original-value decay-factor) u100)
 )
 
+;; New feature: Reputation Decay System
+;; This ensures that reputation reflects recent behavior more heavily than past behavior
+(define-public (apply-reputation-decay (user principal))
+  (let (
+    (current-time (unwrap-panic (get-block-info? time u0)))
+    (user-rep (map-get? user-reputation { user: user }))
+  )
+    ;; Check if user exists
+    (asserts! (is-some user-rep) (err ERR_NOT_FOUND))
+    
+    (let (
+      (unwrapped-rep (unwrap-panic user-rep))
+      (last-updated (get last-updated unwrapped-rep))
+      (days-since-update (/ (- current-time last-updated) u86400))
+    )
+      ;; Only apply decay if it's been at least 30 days
+      (if (>= days-since-update u30)
+        (let (
+          (decay-factor (calculate-decay-factor days-since-update))
+          (current-score (get score unwrapped-rep))
+          (pos-count (get positive-attestations unwrapped-rep))
+          (neg-count (get negative-attestations unwrapped-rep))
+          ;; Apply decay to the positive and negative attestation counts
+          (decayed-pos (calculate-decayed-value pos-count decay-factor))
+          (decayed-neg (calculate-decayed-value neg-count decay-factor))
+          ;; Recalculate score with decayed values
+          (new-score (calculate-score decayed-pos decayed-neg))
+        )
+          (map-set user-reputation
+            { user: user }
+            {
+              score: new-score,
+              positive-attestations: decayed-pos,
+              negative-attestations: decayed-neg,
+              last-updated: current-time
+            }
+          )
+          (ok true)
+        )
+        (ok false)  ;; No decay needed yet
+      )
+    )
+  )
+)
+
