@@ -1,4 +1,4 @@
-# Decentralized Reputation System Smart Contract
+# TrustNet: Decentralized Reputation System Smart Contract
 
 ## Overview
 
